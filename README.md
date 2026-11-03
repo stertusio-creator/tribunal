@@ -1,18 +1,23 @@
 # Tribunal
 
-Mesa de evaluación de trabajos escolares. Recibe un archivo Word (`.docx`), PDF o texto, lee los metadatos y dictamina, con criterio estricto, si la prosa parece generada por un modelo. Después califica el contenido en una matriz de cinco aspectos y deja descargar un informe PDF.
+Mesa para evaluar un trabajo escolar. El docente sube el archivo y pega la consigna. El título y el nombre del participante se leen del documento.
 
-## Qué contiene el informe
+## Cómo se usa
 
-- Datos del trabajo: título, estudiante, asignatura, nivel, archivo, extensión y consigna.
-- Nota institucional y nota de contenido, con el dictamen.
-- Porcentaje de generación con IA, indicio forense, lectura del modelo y las señales que lo sostienen.
-- Matriz académica: pertinencia, argumentación, evidencia, estructura y originalidad.
-- Metadatos examinados y el texto leído.
+1. Suba un Word (`.docx`), un PDF o pegue el texto. El tope es 3 MB y 30 páginas.
+2. Tribunal toma el título del encabezado o de los metadatos, y el participante de la línea de autor, de un `@nombre` o del metadato de autor.
+3. Pegue solo la consigna. No se piden asignatura, nivel, título ni nombre.
+4. El acta muestra la nota de contenido, el porcentaje de generación con IA y deja descargar el informe PDF.
 
-Un metadato de herramienta generativa (ChatGPT, Claude, Gemini, Copilot, Grammarly, QuillBot y otras) cierra el acta: la nota institucional queda en 0. La matriz se conserva como retroalimentación.
+## Si la consigna trae una rúbrica
 
-## Reglamento
+Una tabla con criterios y niveles (por ejemplo Sobresaliente, Competente, En desarrollo e Insuficiente) y un puntaje al inicio de cada celda reemplaza la matriz fija. Cada criterio vale el máximo de su fila. La suma es la nota de contenido.
+
+Si la consigna no trae esa tabla, se califican cinco aspectos de 20 puntos: pertinencia, argumentación, evidencia, estructura y originalidad.
+
+## Integridad
+
+La nota de contenido no absuelve el origen del texto. La nota institucional aplica este reglamento.
 
 | Probabilidad | Efecto |
 | --- | --- |
@@ -21,7 +26,11 @@ Un metadato de herramienta generativa (ChatGPT, Claude, Gemini, Copilot, Grammar
 | 65 a 84 | Tope de 4,0. No aprueba. |
 | 85 o más, o metadato de IA | Nota institucional 0. No acreditable. |
 
-Aprueba desde 6,0, salvo que la integridad lo impida.
+Un metadato de ChatGPT, Claude, Gemini, Copilot, Grammarly, QuillBot u otra herramienta listada cierra el acta. La matriz queda como retroalimentación.
+
+## Informe PDF
+
+Datos del trabajo, dictamen, porcentaje de generación con sus fundamentos, matriz, metadatos examinados y el texto leído.
 
 ## Puesta en marcha
 
@@ -30,4 +39,4 @@ npm install
 npm run dev
 ```
 
-La lectura del modelo usa la variable de entorno `XAI_API_KEY` en el servidor. Si no está, el acta se cierra igual con el análisis forense y una matriz estimada por reglas. La clave no debe publicarse ni llevar el prefijo `VITE_`.
+La lectura del modelo usa `XAI_API_KEY` solo en el servidor. Si no está, el acta se cierra con el análisis forense y una matriz estimada. La clave no se publica ni lleva el prefijo `VITE_`.

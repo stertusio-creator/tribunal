@@ -87,11 +87,11 @@ export type AspectId =
   | "originalidad";
 
 export type AspectScore = {
-  id: AspectId;
+  id: string;
   name: string;
   descriptor: string;
   score: number;
-  max: 20;
+  max: number;
   level: string;
   justification: string;
 };
@@ -111,6 +111,8 @@ export type Evaluation = {
   input: {
     title: string;
     student: string;
+    titleSource?: string;
+    studentSource?: string;
     subject: string;
     level: Level;
     brief: string;
@@ -138,8 +140,10 @@ export type Evaluation = {
   };
   rubric: {
     source: "modelo" | "estimacion";
+    kind: "mesa" | "consigna";
     aspects: AspectScore[];
     contentPoints: number;
+    contentMax: number;
     contentGrade: number;
   };
   verdict: {

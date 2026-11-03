@@ -1,5 +1,6 @@
 import { evaluateSubmission, normalizeLevel } from "@/lib/tribunal/evaluate";
 import { ExtractError, extractPasted, extractUpload } from "@/lib/tribunal/extract";
+import { identifyWork } from "@/lib/tribunal/identity";
 import type { DocumentMeta } from "@/lib/tribunal/types";
 
 function textField(form: FormData, key: string, max: number): string {
@@ -59,15 +60,27 @@ export async function handleEvaluateRequest(request: Request): Promise<Response>
       throw new ExtractError("Suba un archivo o pegue el texto del trabajo.");
     }
 
+    const identity = identifyWork(extracted.paragraphs, extracted.meta);
+    if (textField(form, "intent", 16) === "identify") {
+      return Response.json({
+        ok: true,
+        title: identity.title,
+        student: identity.student,
+        titleSource: identity.titleSource,
+        studentSource: identity.studentSource,
+      });
+    }
+
     const evaluation = await evaluateSubmission({
       text: extracted.text,
       meta: extracted.meta,
       pageCount: extracted.pageCount,
       title: textField(form, "title", 180),
-      brief: textField(form, "brief", 4_000),
+      brief: textField(form, "brief", 12_000),
       level: normalizeLevel(textField(form, "level", 32)),
       subject: textField(form, "subject", 120),
       student: textField(form, "student", 120),
+      identity,
     });
     return Response.json({ ok: true, evaluation });
   } catch (error) {

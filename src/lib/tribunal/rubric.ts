@@ -1,3 +1,4 @@
+import { snapBand, type ParsedRubric } from "@/lib/tribunal/consigna";
 import type {
   AspectId,
   AspectScore,
@@ -233,13 +234,70 @@ export function applyScorePolicy(
 
 export function contentTotals(aspects: AspectScore[]): {
   contentPoints: number;
+  contentMax: number;
   contentGrade: number;
 } {
   const contentPoints = aspects.reduce((sum, aspect) => sum + aspect.score, 0);
+  const contentMax = aspects.reduce((sum, aspect) => sum + (aspect.max || 20), 0) || 100;
   return {
     contentPoints,
-    contentGrade: Math.round(contentPoints) / 10,
+    contentMax,
+    contentGrade: Math.round((contentPoints / contentMax) * 100) / 10,
   };
+}
+
+export function aspectsFromRubric(
+  rubric: ParsedRubric,
+  proposed: { id?: string; name?: string; score: number; justification: string }[],
+): AspectScore[] {
+  return rubric.criteria.map((criterion, index) => {
+    const found =
+      proposed.find((item) => item.id && item.id === criterion.id) ??
+      proposed.find((item) => item.name && foldKey(item.name) === foldKey(criterion.name)) ??
+      proposed[index];
+    const band = snapBand(Number.isFinite(found?.score) ? found.score : 0, criterion.bands);
+    const descriptor = (band.description || criterion.bands[0]?.description || "").slice(0, 220);
+    return {
+      id: criterion.id,
+      name: criterion.name,
+      descriptor,
+      score: band.score,
+      max: criterion.max,
+      level: band.name,
+      justification: found?.justification?.trim() || "Sin justificación.",
+    };
+  });
+}
+
+function foldKey(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+export function estimateOnRubric(text: string, rubric: ParsedRubric): AspectScore[] {
+  return aspectsFromRubric(
+    rubric,
+    rubric.criteria.map((criterion) => {
+      const share = overlap(`${criterion.name}. ${criterion.bands[0]?.description ?? ""}`, text);
+      const picked =
+        share >= 0.45
+          ? criterion.bands[0]
+          : share >= 0.25
+            ? (criterion.bands[1] ?? criterion.bands[0])
+            : share >= 0.12
+              ? (criterion.bands[2] ?? criterion.bands[criterion.bands.length - 1])
+              : criterion.bands[criterion.bands.length - 1];
+      return {
+        id: criterion.id,
+        score: picked?.score ?? 0,
+        justification: `Estimación por cercanía al criterio (${Math.round(share * 100)} % de vocabulario), sin lectura del modelo.`,
+      };
+    }),
+  );
 }
 
 export function decideVerdict(

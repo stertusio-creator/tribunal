@@ -1,10 +1,13 @@
+import { parseRubric } from "@/lib/tribunal/consigna";
 import { analyzeForensics } from "@/lib/tribunal/forensics";
+import type { WorkIdentity } from "@/lib/tribunal/identity";
 import { readWithModel } from "@/lib/tribunal/model";
 import {
   applyScorePolicy,
   contentTotals,
   decideVerdict,
   estimateFeedback,
+  estimateOnRubric,
   estimateRubric,
   fuseProbability,
 } from "@/lib/tribunal/rubric";
@@ -76,12 +79,26 @@ export async function evaluateSubmission(input: {
   subject: string;
   student: string;
   pageCount?: number;
+  identity: WorkIdentity;
 }): Promise<Evaluation> {
   const full = input.text.replace(/\u0000/g, "").trim();
   const analyzed = full.slice(0, 60_000);
   const forensic = analyzeForensics(analyzed, input.meta, input.level, input.brief);
-  const modelText = analyzed.slice(0, MODEL_CHARS);
-  const modelTruncated = analyzed.length > MODEL_CHARS;
+  const fromFile = input.meta.source !== "paste";
+  const identity = input.identity;
+  const fileTitle = (input.meta.fileName ?? "").replace(/\.[a-z0-9]{1,5}$/i, "").trim();
+  const title =
+    (fromFile && identity.title ? identity.title : input.title.trim() || identity.title) ||
+    input.meta.title ||
+    fileTitle ||
+    "Trabajo sin título";
+  const student =
+    (fromFile && identity.student ? identity.student : input.student.trim() || identity.student) || "";
+  const titleSource = title === identity.title ? identity.titleSource : "";
+  const studentSource = student === identity.student ? identity.studentSource : "";
+  const teacherRubric = parseRubric(input.brief);
+  const modelText = analyzed.slice(0, teacherRubric ? 48_000 : MODEL_CHARS);
+  const modelTruncated = analyzed.length > modelText.length;
   let modelNote: string | undefined;
   let reading: Awaited<ReturnType<typeof readWithModel>> = null;
   try {
@@ -89,11 +106,12 @@ export async function evaluateSubmission(input: {
       text: modelText,
       brief: input.brief,
       level: input.level,
-      title: input.title,
+      title,
       subject: input.subject,
       meta: input.meta,
       forensic,
       modelTruncated,
+      rubric: teacherRubric,
     });
   } catch (error) {
     console.error("model failed", error);
@@ -106,19 +124,21 @@ export async function evaluateSubmission(input: {
   }
 
   const probability = fuseProbability(forensic, reading?.probability ?? null);
-  const baseAspects = reading?.aspects ?? estimateRubric(analyzed, input.brief, input.level, forensic);
-  const aspects = applyScorePolicy(baseAspects, input.brief, probability);
+  const baseAspects = reading?.aspects
+    ?? (teacherRubric ? estimateOnRubric(analyzed, teacherRubric) : estimateRubric(analyzed, input.brief, input.level, forensic));
+  const aspects = teacherRubric ? baseAspects : applyScorePolicy(baseAspects, input.brief, probability);
   const totals = contentTotals(aspects);
   const verdict = decideVerdict(totals.contentGrade, probability, forensic.smokingGun);
   const fallback = estimateFeedback(aspects, forensic);
-  const title = input.title.trim() || input.meta.title || input.meta.fileName || "Trabajo sin título";
 
   return {
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     input: {
       title,
-      student: input.student.trim(),
+      student,
+      titleSource: titleSource || undefined,
+      studentSource: studentSource || undefined,
       subject: input.subject.trim(),
       level: input.level,
       brief: input.brief.trim(),
@@ -150,8 +170,10 @@ export async function evaluateSubmission(input: {
     },
     rubric: {
       source: reading ? "modelo" : "estimacion",
+      kind: teacherRubric ? "consigna" : "mesa",
       aspects,
       contentPoints: totals.contentPoints,
+      contentMax: totals.contentMax,
       contentGrade: totals.contentGrade,
     },
     verdict,

@@ -1,6 +1,7 @@
 {
-  "name": "app-builder-workspace",
+  "name": "tribunal",
   "private": true,
+  "description": "Mesa de evaluación de trabajos: título y participante salen del archivo, la consigna puede traer la rúbrica, y el acta mide la generación con IA.",
   "sideEffects": false,
   "type": "module",
   "overrides": {

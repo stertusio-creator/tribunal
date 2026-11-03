@@ -10,7 +10,6 @@ import {
   SAMPLE_HUMAN_BRIEF,
 } from "@/lib/tribunal/samples";
 import type { Evaluation, Level } from "@/lib/tribunal/types";
-import { LEVEL_LABEL, LEVELS } from "@/lib/tribunal/types";
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -51,12 +50,15 @@ function loadHistory(): HistoryItem[] {
 
 function Home() {
   const [file, setFile] = useState<File | null>(null);
+  const [fromFile, setFromFile] = useState<{
+    title: string;
+    student: string;
+    titleSource: string;
+    studentSource: string;
+  } | null>(null);
+  const [readingFile, setReadingFile] = useState(false);
   const [text, setText] = useState("");
-  const [title, setTitle] = useState("");
-  const [student, setStudent] = useState("");
-  const [subject, setSubject] = useState("");
   const [brief, setBrief] = useState("");
-  const [level, setLevel] = useState<Level>("pregrado");
   const [dragOver, setDragOver] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -64,10 +66,54 @@ function Home() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const actaRef = useRef<HTMLDivElement>(null);
   const demoRef = useRef<{ demo: boolean; demoMeta?: string }>({ demo: false });
+  const sampleRef = useRef<{ title: string; student: string; subject: string; level: Level }>({
+    title: "",
+    student: "",
+    subject: "",
+    level: "pregrado",
+  });
 
   useEffect(() => {
     setHistory(loadHistory());
   }, []);
+
+  async function takeFile(next: File | null) {
+    setFile(next);
+    setFromFile(null);
+    demoRef.current = { demo: false };
+    if (!next) return;
+    setText("");
+    setError("");
+    setReadingFile(true);
+    try {
+      const form = new FormData();
+      form.set("file", next);
+      form.set("intent", "identify");
+      const response = await fetch(apiUrl(), { method: "POST", body: form });
+      const body = (await response.json()) as {
+        ok?: boolean;
+        error?: string;
+        title?: string;
+        student?: string;
+        titleSource?: string;
+        studentSource?: string;
+      };
+      if (!response.ok || !body.ok) {
+        setError(body.error || "No se pudo leer el título ni el nombre del archivo.");
+        return;
+      }
+      setFromFile({
+        title: body.title || "",
+        student: body.student || "",
+        titleSource: body.titleSource || "",
+        studentSource: body.studentSource || "",
+      });
+    } catch {
+      setError("No se pudo leer el título ni el nombre del archivo.");
+    } finally {
+      setReadingFile(false);
+    }
+  }
 
   function remember(next: Evaluation) {
     const item: HistoryItem = {
@@ -98,11 +144,11 @@ function Home() {
       const form = new FormData();
       if (file) form.set("file", file);
       else form.set("text", text);
-      form.set("title", title);
-      form.set("student", student);
-      form.set("subject", subject);
+      form.set("title", file ? "" : sampleRef.current.title);
+      form.set("student", file ? "" : sampleRef.current.student);
+      form.set("subject", file ? "" : sampleRef.current.subject);
       form.set("brief", brief);
-      form.set("level", level);
+      form.set("level", file ? "pregrado" : sampleRef.current.level);
       if (!file && demoRef.current.demo) {
         form.set("demo", "1");
         if (demoRef.current.demoMeta) form.set("demoMeta", demoRef.current.demoMeta);
@@ -128,12 +174,15 @@ function Home() {
 
   function runSample(kind: "ai" | "human") {
     setFile(null);
+    setFromFile(null);
     setError("");
     if (kind === "ai") {
-      setTitle("El cambio climático y la responsabilidad colectiva");
-      setStudent("Caso de demostración");
-      setSubject("Ciencias sociales");
-      setLevel("pregrado");
+      sampleRef.current = {
+        title: "El cambio climático y la responsabilidad colectiva",
+        student: "Caso de demostración",
+        subject: "Ciencias sociales",
+        level: "pregrado",
+      };
       setBrief(SAMPLE_AI_BRIEF);
       setText(SAMPLE_AI);
       const stamp = new Date().toISOString();
@@ -152,10 +201,12 @@ function Home() {
         }),
       };
     } else {
-      setTitle("El charco de la cancha, 7º B");
-      setStudent("Caso de demostración");
-      setSubject("Ciencias naturales");
-      setLevel("secundaria");
+      sampleRef.current = {
+        title: "El charco de la cancha, 7º B",
+        student: "Caso de demostración",
+        subject: "Ciencias naturales",
+        level: "secundaria",
+      };
       setBrief(SAMPLE_HUMAN_BRIEF);
       setText(SAMPLE_HUMAN);
       demoRef.current = { demo: false };
@@ -190,7 +241,7 @@ function Home() {
           <div>
             <h2 className="font-display text-2xl font-medium">Expediente</h2>
             <p className="mt-1 text-sm text-muted">
-              .docx, .pdf o .txt, hasta 3 MB. Los .doc viejos no se leen.
+              .docx, .pdf o .txt, hasta 3 MB. El título y el nombre se leen del archivo.
             </p>
           </div>
 
@@ -205,11 +256,7 @@ function Home() {
               event.preventDefault();
               setDragOver(false);
               const next = event.dataTransfer.files?.[0];
-              if (next) {
-                setFile(next);
-                setText("");
-                demoRef.current = { demo: false };
-              }
+              if (next) void takeFile(next);
             }}
             className={`flex min-h-28 cursor-pointer flex-col items-center justify-center gap-2 rounded-md border border-dashed px-4 py-6 text-center transition-colors duration-150 ${
               dragOver ? "border-accent bg-paper" : "border-line bg-paper"
@@ -230,11 +277,7 @@ function Home() {
               className="sr-only"
               onChange={(event) => {
                 const next = event.target.files?.[0] ?? null;
-                setFile(next);
-                if (next) {
-                  setText("");
-                  demoRef.current = { demo: false };
-                }
+                void takeFile(next);
               }}
             />
           </label>
@@ -242,7 +285,7 @@ function Home() {
             <button
               type="button"
               className="self-start text-sm text-muted underline-offset-2 hover:text-ink hover:underline"
-              onClick={() => setFile(null)}
+              onClick={() => void takeFile(null)}
             >
               Quitar archivo
             </button>
@@ -259,6 +302,7 @@ function Home() {
               onChange={(event) => {
                 setText(event.target.value);
                 demoRef.current = { demo: false };
+                sampleRef.current = { title: "", student: "", subject: "", level: "pregrado" };
               }}
               rows={7}
               placeholder={file ? "El archivo tiene prioridad sobre el texto pegado." : "Pegue aquí el trabajo…"}
@@ -266,28 +310,30 @@ function Home() {
             />
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field id="titulo" label="Título del trabajo" value={title} onChange={setTitle} />
-            <Field id="estudiante" label="Estudiante" value={student} onChange={setStudent} />
-            <Field id="asignatura" label="Asignatura" value={subject} onChange={setSubject} />
-            <div className="flex flex-col gap-2">
-              <label htmlFor="nivel" className="text-sm font-medium">
-                Nivel
-              </label>
-              <select
-                id="nivel"
-                value={level}
-                onChange={(event) => setLevel(event.target.value as Level)}
-                className="h-11 rounded-md border border-line bg-surface px-3 text-sm"
-              >
-                {LEVELS.map((item) => (
-                  <option key={item} value={item}>
-                    {LEVEL_LABEL[item]}
-                  </option>
-                ))}
-              </select>
+          {file ? (
+            <div className="rounded-md border border-line bg-paper px-3 py-3 text-sm">
+              <p className="text-xs font-medium tracking-widest text-muted">Leído del archivo</p>
+              {readingFile ? (
+                <p className="mt-2 text-ink">Leyendo título y participante…</p>
+              ) : (
+                <dl className="mt-3 flex flex-col gap-2">
+                  <div>
+                    <dt className="text-muted">Título</dt>
+                    <dd className="mt-0.5 text-ink">{fromFile?.title || "No aparece en el archivo."}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-muted">Participante</dt>
+                    <dd className="mt-0.5 text-ink">{fromFile?.student || "No aparece en el archivo."}</dd>
+                  </div>
+                  {fromFile?.titleSource || fromFile?.studentSource ? (
+                    <p className="text-xs text-muted">
+                      {[fromFile.titleSource, fromFile.studentSource].filter(Boolean).join(" · ")}
+                    </p>
+                  ) : null}
+                </dl>
+              )}
             </div>
-          </div>
+          ) : null}
 
           <div className="flex flex-col gap-2">
             <label htmlFor="consigna" className="text-sm font-medium">
@@ -298,7 +344,7 @@ function Home() {
               value={brief}
               onChange={(event) => setBrief(event.target.value)}
               rows={4}
-              placeholder="Qué pidió, con qué extensión y qué fuentes exigía. Sin esto, la pertinencia queda topada."
+              placeholder="Pegue la consigna o una rúbrica con criterios y puntajes. Si trae una tabla, la matriz usa esos criterios."
               className="rounded-md border border-line bg-surface px-3 py-3 text-sm placeholder:text-muted"
             />
           </div>
@@ -418,31 +464,5 @@ function Home() {
         ) : null}
       </div>
     </main>
-  );
-}
-
-function Field({
-  id,
-  label,
-  value,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <label htmlFor={id} className="text-sm font-medium">
-        {label}
-      </label>
-      <input
-        id={id}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-11 rounded-md border border-line bg-surface px-3 text-sm"
-      />
-    </div>
   );
 }

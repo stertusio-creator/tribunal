@@ -124,14 +124,14 @@ export function buildInforme(evaluation: Evaluation) {
     [headCell("Aspecto"), headCell("Puntos"), headCell("Nivel"), headCell("Fundamentación")],
     ...evaluation.rubric.aspects.map((aspect) => [
       cell(`${aspect.name}\n${aspect.descriptor}`, { bold: false }),
-      cell(`${aspect.score} / 20`, { bold: true, alignment: "right" }),
+      cell(`${aspect.score} / ${aspect.max}`, { bold: true, alignment: "right" }),
       cell(aspect.level),
       cell(aspect.justification),
     ]),
     [
       { text: "Total de contenido", bold: true, fontSize: 9, colSpan: 1 },
       {
-        text: `${evaluation.rubric.contentPoints} / 100\n${grade(evaluation.rubric.contentGrade)}`,
+        text: `${evaluation.rubric.contentPoints} / ${evaluation.rubric.contentMax}\n${grade(evaluation.rubric.contentGrade)}`,
         bold: true,
         fontSize: 9,
         alignment: "right",
@@ -176,7 +176,9 @@ export function buildInforme(evaluation: Evaluation) {
     section("1. Datos del trabajo presentado"),
     keyTable([
       ["Título", evaluation.input.title],
-      ["Estudiante", evaluation.input.student || "No indicado"],
+      ["Participante", evaluation.input.student || (evaluation.input.fileName ? "No consta en el archivo" : "No indicado")],
+      ["De dónde sale el título", evaluation.input.titleSource || "No se leyó del archivo"],
+      ["De dónde sale el nombre", evaluation.input.studentSource || "No se leyó del archivo"],
       ["Asignatura", evaluation.input.subject || "No indicada"],
       ["Nivel", LEVEL_LABEL[evaluation.input.level] ?? evaluation.input.level],
       ["Archivo", evaluation.input.fileName || "No aplica"],
@@ -199,7 +201,10 @@ export function buildInforme(evaluation: Evaluation) {
     ]),
     paragraph(evaluation.verdict.explanation),
     {
-      text: "La nota de contenido sale de la matriz de cinco aspectos. La nota institucional es la que cuenta: aplica el reglamento de integridad sobre esa matriz. Un texto bien escrito puede quedar en cero si la generación no se sostiene.",
+      text:
+        evaluation.rubric.kind === "consigna"
+          ? "La nota de contenido sale de la rúbrica pegada en la consigna. La nota institucional es la que cuenta: aplica el reglamento de integridad sobre esa matriz. Un texto bien escrito puede quedar en cero si la generación no se sostiene."
+          : "La nota de contenido sale de la matriz de cinco aspectos. La nota institucional es la que cuenta: aplica el reglamento de integridad sobre esa matriz. Un texto bien escrito puede quedar en cero si la generación no se sostiene.",
       fontSize: 9,
       color: MUTED,
       margin: [0, 0, 0, 4],
@@ -227,7 +232,9 @@ export function buildInforme(evaluation: Evaluation) {
     evaluation.modelNote ? paragraph(evaluation.modelNote) : { text: "" },
     section("4. Evaluación académica"),
     paragraph(
-      "Cinco aspectos, veinte puntos cada uno. Diez a trece es un trabajo competente y genérico; dieciocho es excepcional. La originalidad se recorta si el porcentaje de IA es alto, aunque el resto del texto esté bien armado. Sin consigna del docente, la pertinencia no supera 14.",
+      evaluation.rubric.kind === "consigna"
+        ? "Los criterios y los puntajes son los de la rúbrica del docente. El nivel es el descriptor que el trabajo alcanza. La nota institucional, aparte, aplica el reglamento de integridad."
+        : "Cinco aspectos, veinte puntos cada uno. Diez a trece es un trabajo competente y genérico; dieciocho es excepcional. La originalidad se recorta si el porcentaje de IA es alto, aunque el resto del texto esté bien armado. Sin consigna del docente, la pertinencia no supera 14.",
     ),
     {
       table: { headerRows: 1, widths: [130, 52, 68, "*"], body: aspectRows },

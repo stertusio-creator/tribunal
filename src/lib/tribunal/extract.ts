@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import { getDocumentProxy } from "unpdf";
+import type { DocParagraph } from "@/lib/tribunal/identity";
 import type { DocumentMeta, MetaField, SourceKind } from "@/lib/tribunal/types";
 
 export class ExtractError extends Error {
@@ -16,6 +17,7 @@ export type Extracted = {
   text: string;
   meta: DocumentMeta;
   pageCount?: number;
+  paragraphs: DocParagraph[];
 };
 
 function emptyMeta(source: SourceKind, fileName?: string, fileBytes?: number): DocumentMeta {
@@ -58,23 +60,24 @@ function tagText(xml: string, localName: string): string | undefined {
   return value || undefined;
 }
 
-function docxParagraphs(xml: string): string[] {
-  const paragraphs: string[] = [];
+function docxParagraphs(xml: string): DocParagraph[] {
+  const paragraphs: DocParagraph[] = [];
   const pattern = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/g;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(xml))) {
+    const style = match[0].match(/<w:pStyle\b[^>]*\bw:val="([^"]+)"/i)?.[1];
     const runs = [...match[0].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map((part) =>
       decodeXml(part[1]),
     );
     const line = runs.join("").replace(/[ \t]+\n/g, "\n").trim();
-    if (line) paragraphs.push(line);
+    if (line) paragraphs.push({ text: line, style });
   }
   if (paragraphs.length === 0) {
     const loose = [...xml.matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/g)].map((part) =>
       decodeXml(part[1]),
     );
     const joined = loose.join("").trim();
-    if (joined) paragraphs.push(joined);
+    if (joined) paragraphs.push({ text: joined });
   }
   return paragraphs;
 }
@@ -127,7 +130,9 @@ async function extractDocx(bytes: Uint8Array, fileName?: string): Promise<Extrac
     if (!file) continue;
     const xml = await file.async("string");
     if (xml.length > 400_000) continue;
-    const text = docxParagraphs(xml).join(" ");
+    const text = docxParagraphs(xml)
+      .map((paragraph) => paragraph.text)
+      .join(" ");
     if (text.trim()) extraBits.push(text.trim());
   }
   const coreXml = (await zip.file("docProps/core.xml")?.async("string")) ?? "";
@@ -155,11 +160,15 @@ async function extractDocx(bytes: Uint8Array, fileName?: string): Promise<Extrac
     const side = extraBits.join(" \n ").slice(0, 500);
     meta.extras.push({ label: "Encabezados, notas o comentarios", value: side });
   }
-  const text = paragraphs.join("\n\n").slice(0, MAX_TEXT).trim();
+  const text = paragraphs
+    .map((paragraph) => paragraph.text)
+    .join("\n\n")
+    .slice(0, MAX_TEXT)
+    .trim();
   if (text.length < 40) {
     throw new ExtractError("El Word casi no tiene texto. Si son imágenes escaneadas, esta mesa no las lee.");
   }
-  return { text, meta, pageCount: meta.pages };
+  return { text, meta, pageCount: meta.pages, paragraphs };
 }
 
 function asString(value: unknown): string | undefined {
@@ -233,7 +242,7 @@ async function extractPdf(bytes: Uint8Array, fileName?: string): Promise<Extract
         "El PDF no tiene texto seleccionable. Si es un escaneo, hace falta un archivo con texto, no solo imagen.",
       );
     }
-    return { text, meta, pageCount };
+    return { text, meta, pageCount, paragraphs: paragraphsFromText(text) };
   } finally {
     await pdf.cleanup();
     await pdf.loadingTask.destroy();
@@ -248,7 +257,7 @@ function extractPlain(bytes: Uint8Array, fileName: string | undefined, source: S
   if (text.length < 40) {
     throw new ExtractError("El texto es demasiado corto para abrir un acta.");
   }
-  return { text, meta: emptyMeta(source, fileName, bytes.byteLength) };
+  return { text, meta: emptyMeta(source, fileName, bytes.byteLength), paragraphs: paragraphsFromText(text) };
 }
 
 export async function extractUpload(bytes: Uint8Array, fileName: string): Promise<Extracted> {
@@ -287,5 +296,17 @@ export function extractPasted(text: string): Extracted {
   if (clean.length < 40) {
     throw new ExtractError("Pegue al menos un párrafo. Con menos texto la mesa no abre acta.");
   }
-  return { text: clean, meta: emptyMeta("paste") };
+  return { text: clean, meta: emptyMeta("paste"), paragraphs: paragraphsFromText(clean) };
+}
+
+function paragraphsFromText(text: string): DocParagraph[] {
+  const rows: DocParagraph[] = [];
+  for (const raw of text.split(/\n+/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const style = /^#\s+\S/.test(line) ? "Heading1" : /^#{2,6}\s+\S/.test(line) ? "Heading2" : undefined;
+    rows.push({ text: line, style });
+    if (rows.length >= 80) break;
+  }
+  return rows;
 }

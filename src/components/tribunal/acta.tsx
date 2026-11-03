@@ -104,7 +104,9 @@ export function Acta({ evaluation }: { evaluation: Evaluation }) {
               {grade(evaluation.rubric.contentGrade)}
               <span className="text-base text-muted"> /10</span>
             </dd>
-            <dd className="text-xs text-muted">{evaluation.rubric.contentPoints}/100 en la matriz</dd>
+            <dd className="text-xs text-muted">
+              {evaluation.rubric.contentPoints}/{evaluation.rubric.contentMax} en la matriz
+            </dd>
           </div>
           <div>
             <dt className="text-xs text-muted">Probabilidad de IA</dt>
@@ -145,8 +147,9 @@ export function Acta({ evaluation }: { evaluation: Evaluation }) {
           {evaluation.input.title}
         </p>
         <p>
-          <span className="text-muted">Estudiante. </span>
-          {evaluation.input.student || "No indicado"}
+          <span className="text-muted">Participante. </span>
+          {evaluation.input.student ||
+            (evaluation.input.fileName ? "No consta en el archivo" : "No indicado")}
         </p>
         <p>
           <span className="text-muted">Asignatura. </span>
@@ -168,6 +171,12 @@ export function Acta({ evaluation }: { evaluation: Evaluation }) {
           </span>
         </p>
       </header>
+      {evaluation.input.titleSource || evaluation.input.studentSource ? (
+        <p className="mt-3 text-xs text-muted">
+          {evaluation.input.titleSource ? `Título: ${evaluation.input.titleSource}. ` : ""}
+          {evaluation.input.studentSource ? `Participante: ${evaluation.input.studentSource}.` : ""}
+        </p>
+      ) : null}
       {evaluation.input.brief ? (
         <p className="mt-4 text-sm text-muted">
           <span className="text-ink">Consigna. </span>
@@ -180,9 +189,13 @@ export function Acta({ evaluation }: { evaluation: Evaluation }) {
       )}
 
       <section className="mt-8">
-        <h3 className="font-display text-2xl font-medium">Matriz de cinco aspectos</h3>
+        <h3 className="font-display text-2xl font-medium">
+          {evaluation.rubric.kind === "consigna" ? "Matriz de la rúbrica" : "Matriz de cinco aspectos"}
+        </h3>
         <p className="mt-1 text-sm text-muted">
-          Cada aspecto vale 20. La suma es la nota de contenido.{" "}
+          {evaluation.rubric.kind === "consigna"
+            ? `Cada criterio vale lo que fija la consigna. La suma es ${evaluation.rubric.contentMax} y de ahí sale la nota de contenido. `
+            : "Cada aspecto vale 20. La suma es la nota de contenido. "}
           {evaluation.rubric.source === "modelo"
             ? "Justificado por el modelo y corregido por el reglamento."
             : "Estimación por reglas, sin modelo."}
@@ -207,12 +220,12 @@ export function Acta({ evaluation }: { evaluation: Evaluation }) {
                 <p className="font-medium">{aspect.name}</p>
                 <p className="mt-1 text-sm text-muted">{aspect.descriptor}</p>
                 <div className="mt-3 h-1 bg-line md:max-w-48" aria-hidden="true">
-                  <div className="h-1 bg-accent" style={{ width: `${(aspect.score / 20) * 100}%` }} />
+                  <div className="h-1 bg-accent" style={{ width: `${(aspect.score / aspect.max) * 100}%` }} />
                 </div>
               </div>
               <p role="cell" className="font-display text-2xl tabular-nums md:text-xl">
                 {aspect.score}
-                <span className="text-sm text-muted">/20</span>
+                <span className="text-sm text-muted">/{aspect.max}</span>
               </p>
               <p role="cell" className="text-sm">
                 {aspect.level}
