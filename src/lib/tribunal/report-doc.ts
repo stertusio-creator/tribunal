@@ -50,6 +50,11 @@ const tableLayout = {
   fillColor: (index: number) => (index === 0 ? ACCENT : index % 2 === 0 ? PAPER : null),
 };
 
+function bullets(items: string[], empty: string): string[] {
+  const source = items.length > 0 ? items : [empty];
+  return source.map((item) => item);
+}
+
 function section(title: string): Block {
   return { text: title, style: "h2" };
 }
@@ -232,14 +237,18 @@ export function buildInforme(evaluation: Evaluation) {
     section("5. Retroalimentación"),
     { text: "Lo que sostiene el trabajo", bold: true, margin: [0, 0, 0, 3] },
     {
-      ul: evaluation.feedback.strengths.length ? evaluation.feedback.strengths : ["Nada que esta mesa pueda llamar un sostén."],
+      ul: bullets(
+        evaluation.feedback.strengths,
+        "Nada que esta mesa pueda llamar un sostén.",
+      ),
       margin: [0, 0, 0, 6],
     },
     { text: "Lo que debe corregir", bold: true, margin: [0, 0, 0, 3] },
     {
-      ul: evaluation.feedback.improvements.length
-        ? evaluation.feedback.improvements
-        : ["Volver a la consigna y reescribir con fuentes localizables."],
+      ul: bullets(
+        evaluation.feedback.improvements,
+        "Volver a la consigna y reescribir con fuentes localizables.",
+      ),
       margin: [0, 0, 0, 6],
     },
     paragraph(evaluation.feedback.summary),
