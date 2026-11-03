@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --font-sans: "Source Sans 3", "Segoe UI", sans-serif;
+
+  --color-paper: #f3f1ec;
+  --color-surface: #fbfaf7;
+  --color-ink: #1c1e21;
+  --color-muted: #5c636b;
+  --color-line: #e3dfd6;
+  --color-accent: #243044;
+  --color-accent-fg: #f6f4ef;
+  --color-danger: #8d3a32;
+  --color-warn: #8a5a28;
+  --color-ok: #245743;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.75rem;
+  --radius-2xl: 2.25rem;
+}
+
+:root {
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-slow: 400ms;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    background: var(--color-paper);
+    color: var(--color-ink);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    text-wrap: pretty;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 18%, white);
+    color: var(--color-ink);
+  }
+}
+
+@keyframes tribunal-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tribunal-slide {
+  from {
+    transform: translateX(-70%);
+  }
+  to {
+    transform: translateX(240%);
+  }
+}
+
+.acta-rise {
+  animation: tribunal-rise var(--motion-slow) var(--ease-out);
+}
+
+.bar-slide {
+  animation: tribunal-slide 1.1s var(--ease-out) infinite;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acta-rise,
+  .bar-slide {
+    animation: none;
+  }
+
+  button:active:not(:disabled) {
+    transform: none;
+  }
+}
+
+@media print {
+  body {
+    background: white;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .acta {
+    border-color: #1c1e21;
+  }
+}
