@@ -99,28 +99,35 @@ export async function evaluateSubmission(input: {
   const teacherRubric = parseRubric(input.brief);
   const modelText = analyzed.slice(0, teacherRubric ? 48_000 : MODEL_CHARS);
   const modelTruncated = analyzed.length > modelText.length;
+  const publicPage = import.meta.env.VITE_PAGES === "1";
   let modelNote: string | undefined;
   let reading: Awaited<ReturnType<typeof readWithModel>> = null;
-  try {
-    reading = await readWithModel({
-      text: modelText,
-      brief: input.brief,
-      level: input.level,
-      title,
-      subject: input.subject,
-      meta: input.meta,
-      forensic,
-      modelTruncated,
-      rubric: teacherRubric,
-    });
-  } catch (error) {
-    console.error("model failed", error);
-    reading = null;
-  }
-  if (!reading) {
-    modelNote = process.env.XAI_API_KEY
-      ? "La lectura del modelo no pudo completarse. La probabilidad es el puntaje forense y la matriz es una estimación por reglas."
-      : "En este entorno no hay lectura de modelo. La probabilidad es el puntaje forense y la matriz es una estimación por reglas.";
+  if (publicPage) {
+    modelNote =
+      "En esta página pública no hay lectura de modelo. La probabilidad es el puntaje forense y la matriz es una estimación por reglas.";
+  } else {
+    try {
+      reading = await readWithModel({
+        text: modelText,
+        brief: input.brief,
+        level: input.level,
+        title,
+        subject: input.subject,
+        meta: input.meta,
+        forensic,
+        modelTruncated,
+        rubric: teacherRubric,
+      });
+    } catch (error) {
+      console.error("model failed", error);
+      reading = null;
+    }
+    if (!reading) {
+      const hasKey = typeof process !== "undefined" && Boolean(process.env?.XAI_API_KEY);
+      modelNote = hasKey
+        ? "La lectura del modelo no pudo completarse. La probabilidad es el puntaje forense y la matriz es una estimación por reglas."
+        : "En este entorno no hay lectura de modelo. La probabilidad es el puntaje forense y la matriz es una estimación por reglas.";
+    }
   }
 
   const probability = fuseProbability(forensic, reading?.probability ?? null);

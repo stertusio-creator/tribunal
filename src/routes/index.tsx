@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { FileText, Trash2, Upload } from "lucide-react";
 import { Acta } from "@/components/tribunal/acta";
 import { previewPathPrefix } from "@/lib/preview-path-prefix";
+import { evaluateForm } from "@/lib/tribunal/desk";
 import {
   SAMPLE_AI,
   SAMPLE_AI_BRIEF,
@@ -48,7 +49,7 @@ function loadHistory(): HistoryItem[] {
   }
 }
 
-function Home() {
+export function Home() {
   const [file, setFile] = useState<File | null>(null);
   const [fromFile, setFromFile] = useState<{
     title: string;
@@ -89,17 +90,15 @@ function Home() {
       const form = new FormData();
       form.set("file", next);
       form.set("intent", "identify");
-      const response = await fetch(apiUrl(), { method: "POST", body: form });
-      const body = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        title?: string;
-        student?: string;
-        titleSource?: string;
-        studentSource?: string;
-      };
-      if (!response.ok || !body.ok) {
-        setError(body.error || "No se pudo leer el título ni el nombre del archivo.");
+      const body = import.meta.env.VITE_PAGES === "1"
+        ? await evaluateForm(form)
+        : await fetch(apiUrl(), { method: "POST", body: form }).then(async (response) => {
+            const parsed = (await response.json()) as { ok?: boolean; error?: string };
+            if (!response.ok) return { ok: false as const, error: parsed.error, status: response.status };
+            return parsed as Awaited<ReturnType<typeof evaluateForm>>;
+          });
+      if (!body.ok || !("student" in body)) {
+        setError(!body.ok ? body.error || "No se pudo leer el título ni el nombre del archivo." : "No se pudo leer el título ni el nombre del archivo.");
         return;
       }
       setFromFile({
@@ -154,10 +153,17 @@ function Home() {
         if (demoRef.current.demoMeta) form.set("demoMeta", demoRef.current.demoMeta);
       }
       demoRef.current = { demo: false };
-      const response = await fetch(apiUrl(), { method: "POST", body: form });
-      const body = (await response.json()) as { ok: boolean; error?: string; evaluation?: Evaluation };
-      if (!response.ok || !body.ok || !body.evaluation) {
-        setError(body.error || "No se pudo evaluar.");
+      const body = import.meta.env.VITE_PAGES === "1"
+        ? await evaluateForm(form)
+        : await fetch(apiUrl(), { method: "POST", body: form }).then(async (response) => {
+            const parsed = (await response.json()) as { ok?: boolean; error?: string; evaluation?: Evaluation };
+            if (!response.ok || !parsed.ok || !parsed.evaluation) {
+              return { ok: false as const, error: parsed.error || "No se pudo evaluar.", status: response.status };
+            }
+            return { ok: true as const, evaluation: parsed.evaluation };
+          });
+      if (!body.ok || !body.evaluation) {
+        setError(body.ok ? "No se pudo evaluar." : body.error || "No se pudo evaluar.");
         return;
       }
       setEvaluation(body.evaluation);
