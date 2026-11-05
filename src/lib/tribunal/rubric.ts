@@ -289,28 +289,28 @@ export function decideVerdict(
   smokingGun: boolean,
 ): Evaluation["verdict"] {
   const institutional = contentGrade;
-  let headline = "Parece del alumno";
+  let headline = "Poco probable que lo escribió una IA";
   let outcome: Outcome = contentGrade >= 6 ? "aprobado" : "insuficiente";
   let integrity: Integrity = "limpia";
-  let explanation = `El ${aiProbability} % junta lo que se ve en el archivo y en la forma de escribir. Ninguna señal alcanza para decir que lo hizo una IA.`;
+  let explanation = `Este ${aiProbability} % es la probabilidad de que el texto lo haya escrito una IA, no el alumno. Con este número, lo más razonable es atribuirlo al alumno.`;
 
   if (smokingGun || aiProbability >= 80) {
-    headline = "Hecho con IA";
+    headline = "Muy probable que lo escribió una IA";
     outcome = "rechazado";
     integrity = "rechazada";
     explanation = smokingGun
-      ? `El ${aiProbability} % no es una impresión de estilo. El archivo deja huella de una herramienta que genera texto, y eso pesa más que lo bien escrito que esté. Cada razón está abajo, en el orden en que sube el porcentaje.`
-      : `El ${aiProbability} % sale de señales que se acumulan: frases muy parejas, muletillas de modelo y poca huella de alguien que estuvo ahí. No hace falta una sola prueba perfecta cuando varias apuntan a lo mismo.`;
+      ? `Este ${aiProbability} % es la probabilidad de que lo haya escrito una IA, no el alumno. No es una impresión de estilo: el archivo deja huella de una herramienta que genera texto. Cada razón está abajo.`
+      : `Este ${aiProbability} % es la probabilidad de que lo haya escrito una IA, no el alumno. Sale de frases muy parejas, muletillas de modelo y poca huella de alguien que estuvo ahí.`;
   } else if (aiProbability >= 55) {
-    headline = "Uso de IA muy probable";
+    headline = "Probable que lo escribió una IA";
     outcome = "observado";
     integrity = "observada";
-    explanation = `El ${aiProbability} % ya no es una duda menor. Las razones de abajo indican que una parte importante del trabajo no la escribió el alumno.`;
+    explanation = `Este ${aiProbability} % es la probabilidad de que lo haya escrito una IA, no el alumno. Ya no es una duda menor: una parte importante no parece del alumno.`;
   } else if (aiProbability >= 35) {
-    headline = "Hay ayuda de IA";
+    headline = "Puede haberlo escrito con ayuda de IA";
     outcome = "aprobado-reserva";
     integrity = "reserva";
-    explanation = `El ${aiProbability} % no cierra el caso, pero tampoco permite tratar el texto como escrito solo por el alumno. Abajo está qué se vio y qué no.`;
+    explanation = `Este ${aiProbability} % es la probabilidad de que lo haya escrito una IA, no el alumno. No cierra el caso, pero tampoco permite tratarlo como escrito solo por el alumno.`;
   }
 
   const band =

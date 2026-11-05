@@ -67,12 +67,18 @@ export function Acta({ evaluation }: { evaluation: Evaluation }) {
           <p className="mt-1 text-sm text-muted">{evaluation.verdict.band}</p>
         </section>
         <section className="rounded-xl border border-line bg-paper p-5">
-          <p className="text-xs font-medium tracking-widest text-muted">Hecho con IA</p>
+          <p className="text-xs font-medium tracking-widest text-muted">
+            Probabilidad de que lo escribió una IA
+          </p>
           <p className={`mt-2 font-display text-5xl font-medium tabular-nums ${tone}`}>
             {evaluation.ai.probability}
             <span className="ml-1 text-xl">%</span>
           </p>
           <p className={`mt-1 text-sm ${tone}`}>{evaluation.verdict.headline}</p>
+          <p className="mt-2 text-sm text-ink">
+            El número va de la IA, no del alumno. 100 % sería casi seguro escrito por una IA. 0 %
+            sería casi seguro escrito por el alumno.
+          </p>
         </section>
       </div>
 
@@ -98,7 +104,7 @@ export function Acta({ evaluation }: { evaluation: Evaluation }) {
       </section>
 
       <section className="mt-8">
-        <h3 className="font-display text-2xl font-medium">Por qué este porcentaje</h3>
+        <h3 className="font-display text-2xl font-medium">Por qué esta probabilidad de IA</h3>
         <p className="mt-3 text-base text-ink">{evaluation.ai.summary || evaluation.verdict.explanation}</p>
         {evaluation.ai.summary ? (
           <p className="mt-2 text-sm text-muted">{evaluation.verdict.explanation}</p>

@@ -220,13 +220,13 @@ export function Home() {
             <p className="text-xs font-medium tracking-widest text-muted">Mesa de evaluación</p>
             <h1 className="mt-2 font-display text-5xl font-medium tracking-tight text-ink">Tribunal</h1>
             <p className="mt-3 max-w-xl text-base text-muted">
-              Suba el trabajo. El informe explica, en simple, la nota del texto y por qué ese
-              porcentaje corresponde a un uso de IA.
+              Suba el trabajo. El informe da la nota del texto y la probabilidad de que lo haya
+              escrito una IA, no el alumno.
             </p>
           </div>
           <p className="max-w-xs text-sm text-ink">
-            La nota no se castiga por la sospecha. El porcentaje de IA sí es estricto, y cada razón
-            queda escrita.
+            La nota no se castiga por la sospecha. El porcentaje es de IA: más alto, más probable
+            que no lo escribió el alumno.
           </p>
         </div>
       </header>
@@ -423,7 +423,7 @@ export function Home() {
                   >
                     <span className="text-sm font-medium">{item.title}</span>
                     <span className="mt-1 text-xs text-muted tabular-nums">
-                      {item.headline} · nota {item.grade.toFixed(1).replace(".", ",")} · IA {item.ai}%
+                      {item.headline} · nota {item.grade.toFixed(1).replace(".", ",")} · prob. de IA {item.ai}%
                     </span>
                   </button>
                 </li>

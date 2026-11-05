@@ -197,15 +197,16 @@ export function buildInforme(evaluation: Evaluation) {
     paragraph(
       "Esta nota mira solo el texto: si responde a lo pedido, si se entiende y si aporta algo. No baja porque el trabajo parezca hecho con IA. Eso se explica aparte, en el porcentaje.",
     ),
-    section("3. Por qué este porcentaje de IA"),
+    section("3. Probabilidad de que lo escribió una IA"),
     keyTable([
-      ["Uso de IA", `${evaluation.ai.probability} %`],
+      ["Probabilidad de IA", `${evaluation.ai.probability} %`],
+      ["Cómo se lee", "Más alto = más probable que lo escribió una IA, no el alumno. 0 % sería casi seguro del alumno. 100 % sería casi seguro generado."],
       ["Lectura", evaluation.verdict.headline],
     ]),
     paragraph(evaluation.ai.summary),
     paragraph(evaluation.verdict.explanation),
     paragraph(
-      "El porcentaje no es un estilo de nota. Suma huellas concretas: el programa con el que se creó el archivo, el tiempo de edición, frases hechas de modelo y una prosa demasiado pareja. Si el archivo nombra una herramienta generativa, el porcentaje no baja de 96, aunque el texto esté bien escrito.",
+      "El número es la probabilidad de que el texto lo haya escrito una IA, no la parte que hizo el alumno. Sube con huellas concretas: el programa con el que se creó el archivo, el tiempo de edición, frases hechas de modelo y una prosa demasiado pareja. Si el archivo nombra una herramienta generativa, no baja de 96, aunque el texto esté bien escrito.",
     ),
     { text: "Señales que sostienen el porcentaje", bold: true, margin: [0, 4, 0, 4] },
     {
