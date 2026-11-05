@@ -16,13 +16,6 @@ export const Route = createFileRoute("/")({ component: Home });
 
 const HISTORY_KEY = "tribunal-actas-v1";
 
-const RULES = [
-  ["Menos de 45", "Sin sanción. La nota institucional es la de contenido."],
-  ["45 a 64", "Reserva. Se descuentan 2,0 puntos."],
-  ["65 a 84", "Observado. Tope de 4,0. No aprueba."],
-  ["85 o más, o metadato de IA", "No acreditable. Nota institucional 0."],
-];
-
 type HistoryItem = {
   id: string;
   title: string;
@@ -222,23 +215,23 @@ export function Home() {
   return (
     <main className="min-h-screen">
       <header className="no-print border-b border-line">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 md:flex-row md:items-end md:justify-between md:px-6 md:py-10">
+        <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8 md:flex-row md:items-end md:justify-between md:px-6 md:py-10">
           <div className="max-w-2xl">
             <p className="text-xs font-medium tracking-widest text-muted">Mesa de evaluación</p>
             <h1 className="mt-2 font-display text-5xl font-medium tracking-tight text-ink">Tribunal</h1>
             <p className="mt-3 max-w-xl text-base text-muted">
-              Recibe un trabajo en Word, PDF o texto. Lee los metadatos, juzga con criterio estricto
-              si la prosa parece generada y califica el contenido en una matriz de cinco aspectos.
+              Suba el trabajo. El informe explica, en simple, la nota del texto y por qué ese
+              porcentaje corresponde a un uso de IA.
             </p>
           </div>
           <p className="max-w-xs text-sm text-ink">
-            Un metadato de herramienta generativa cierra el acta. La matriz sigue ahí, como
-            retroalimentación, no como nota.
+            La nota no se castiga por la sospecha. El porcentaje de IA sí es estricto, y cada razón
+            queda escrita.
           </p>
         </div>
       </header>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1.45fr)_minmax(16rem,0.72fr)]">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 md:px-6">
         <form
           onSubmit={submit}
           className="no-print flex flex-col gap-5 rounded-2xl border border-line bg-surface p-6"
@@ -366,7 +359,7 @@ export function Home() {
             disabled={busy}
             className="inline-flex h-12 items-center justify-center rounded-md bg-accent px-4 text-sm font-medium text-accent-fg transition-opacity duration-150 hover:opacity-90 disabled:opacity-60"
           >
-            {busy ? "Evaluando el expediente…" : "Abrir evaluación"}
+            {busy ? "Leyendo el trabajo…" : "Ver informe"}
           </button>
           {busy ? (
             <div className="h-1 overflow-hidden bg-line" aria-hidden="true">
@@ -395,76 +388,52 @@ export function Home() {
           </div>
           <p className="text-xs text-muted">
             Los casos de demostración llenan el formulario. El primero simula un PDF creado por
-            ChatGPT en un minuto. Hay que pulsar «Abrir evaluación» para dictaminar.
+            ChatGPT en un minuto. Hay que pulsar «Ver informe» para leer el resultado.
           </p>
         </form>
 
-        <aside className="no-print flex flex-col gap-6">
-          <section className="rounded-2xl border border-line bg-surface p-6">
-            <h2 className="font-display text-2xl font-medium">Reglamento</h2>
-            <p className="mt-2 text-sm text-muted">
-              Sobre 10. Aprueba desde 6,0, salvo que la integridad lo impida. La matriz no se
-              borra: deja de ser la nota.
-            </p>
-            <dl className="mt-4 flex flex-col gap-3">
-              {RULES.map(([band, effect]) => (
-                <div key={band} className="border-t border-line pt-3">
-                  <dt className="text-sm font-medium">{band}</dt>
-                  <dd className="mt-1 text-sm text-muted">{effect}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-
-          <section className="rounded-2xl border border-line bg-surface p-6">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="font-display text-2xl font-medium">En este navegador</h2>
-              {history.length > 0 ? (
-                <button
-                  type="button"
-                  className="inline-flex h-10 items-center gap-1 text-sm text-muted hover:text-ink"
-                  onClick={() => {
-                    localStorage.removeItem(HISTORY_KEY);
-                    setHistory([]);
-                  }}
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                  Borrar
-                </button>
-              ) : null}
+        {history.length > 0 ? (
+          <section className="no-print">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-muted">Informes de este navegador</h2>
+              <button
+                type="button"
+                className="inline-flex h-10 items-center gap-1 text-sm text-muted hover:text-ink"
+                onClick={() => {
+                  localStorage.removeItem(HISTORY_KEY);
+                  setHistory([]);
+                }}
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                Borrar
+              </button>
             </div>
-            {history.length === 0 ? (
-              <p className="mt-3 text-sm text-muted">
-                Las actas se guardan solo en este dispositivo. No salen de aquí.
-              </p>
-            ) : (
-              <ul className="mt-4 flex flex-col gap-2">
-                {history.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEvaluation(item.evaluation);
-                        requestAnimationFrame(() => {
-                          actaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-                        });
-                      }}
-                      className="flex w-full flex-col rounded-md border border-line px-3 py-3 text-left hover:bg-paper"
-                    >
-                      <span className="text-sm font-medium">{item.title}</span>
-                      <span className="mt-1 text-xs text-muted tabular-nums">
-                        {item.headline} · {item.grade.toFixed(1).replace(".", ",")} · IA {item.ai}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            <ul className="mt-2 flex flex-col gap-2">
+              {history.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEvaluation(item.evaluation);
+                      requestAnimationFrame(() => {
+                        actaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      });
+                    }}
+                    className="flex w-full flex-col rounded-md border border-line bg-surface px-3 py-3 text-left hover:bg-paper"
+                  >
+                    <span className="text-sm font-medium">{item.title}</span>
+                    <span className="mt-1 text-xs text-muted tabular-nums">
+                      {item.headline} · nota {item.grade.toFixed(1).replace(".", ",")} · IA {item.ai}%
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </section>
-        </aside>
+        ) : null}
 
         {evaluation ? (
-          <div ref={actaRef} className="scroll-mt-6 lg:col-span-2">
+          <div ref={actaRef} className="scroll-mt-6">
             <Acta evaluation={evaluation} />
           </div>
         ) : null}

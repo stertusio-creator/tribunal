@@ -111,7 +111,7 @@ export function estimateRubric(
 
   let pertinencia = 11;
   let pertinenciaWhy =
-    "No hay consigna del docente. La pertinencia se mira solo por coherencia interna y queda topada en 14.";
+    "No hay consigna del docente. Se mira si el texto sostiene un tema, sin bajarle la nota por eso.";
   if (brief.trim().length >= 40) {
     const share = overlap(brief, text);
     pertinencia = Math.round(6 + share * 13);
@@ -168,18 +168,14 @@ export function estimateRubric(
         ? `${stats.paragraphs} párrafos y un cierre reconocible. La estructura existe; la calidad de los enlaces es otra cosa.`
         : `${stats.paragraphs} párrafos, sin un cierre que ate lo anterior.`;
 
-  let originalidad = Math.round(18 - forensic.score / 6);
-  if (stats.firstPerson >= 4) originalidad += 2;
-  if (stats.digitGroups >= 3) originalidad += 1;
-  if (stats.words >= 400 && stats.firstPerson === 0 && stats.digitGroups === 0) originalidad -= 3;
+  let originalidad = 13;
+  if (stats.firstPerson >= 3) originalidad += 3;
+  if (stats.digitGroups >= 2) originalidad += 2;
+  if (stats.words >= 500 && stats.firstPerson === 0 && stats.digitGroups === 0) originalidad -= 2;
   const originalidadWhy =
-    forensic.smokingGun
-      ? "Hay un hallazgo crítico de generación. La voz propia no se puede acreditar."
-      : forensic.score >= 60
-        ? "La prosa se parece demasiado a una entrega de modelo como para conceder voz propia."
-        : stats.firstPerson >= 4
-          ? "Hay primera persona y algún detalle situado. Eso no prueba autoría, pero es lo que esta estimación puede ver."
-          : "Poca voz situada. La estimación no encuentra un caso, una duda o un juicio que parezca de alguien.";
+    stats.firstPerson >= 3
+      ? "Hay una voz en primera persona y algún detalle propio. Eso suma en lo académico y no decide si lo escribió el alumno."
+      : "El texto explica el tema. No se le pide una voz literaria para considerar bien lograda esta parte.";
 
   const aspects = [
     makeAspect("pertinencia", pertinencia, pertinenciaWhy),
@@ -192,7 +188,7 @@ export function estimateRubric(
 }
 
 function fuseFloor(forensic: ForensicReport): number {
-  return forensic.smokingGun ? Math.max(forensic.score, 92) : forensic.score;
+  return forensic.smokingGun ? Math.max(forensic.score, 96) : forensic.score;
 }
 
 export function fuseProbability(
@@ -201,34 +197,21 @@ export function fuseProbability(
 ): number {
   if (modelProbability == null) return fuseFloor(forensic);
   let score = modelProbability;
-  if (forensic.smokingGun) score = Math.max(score, 90);
-  if (forensic.score >= 70) score = Math.max(score, forensic.score - 8);
-  score = Math.max(score, Math.round(forensic.score * 0.72));
+  if (forensic.smokingGun) score = Math.max(score, 96);
+  if (forensic.score >= 55) score = Math.max(score, forensic.score - 3);
+  score = Math.max(score, Math.round(forensic.score * 0.88));
   return Math.min(100, Math.max(0, Math.round(score)));
 }
 
 export function applyScorePolicy(
   aspects: AspectScore[],
-  brief: string,
-  aiProbability: number,
+  _brief: string,
+  _aiProbability: number,
 ): AspectScore[] {
   const byId = new Map(aspects.map((aspect) => [aspect.id, aspect]));
   return ORDER.map((id) => {
     const current = byId.get(id) ?? makeAspect(id, 0, "Sin lectura de este aspecto.");
-    let score = current.score;
-    let justification = current.justification.trim();
-    if (id === "pertinencia" && brief.trim().length < 40 && score > 14) {
-      score = 14;
-      justification = `${justification} Tope de mesa: sin consigna, la pertinencia no pasa de 14.`.trim();
-    }
-    if (id === "originalidad" && aiProbability >= 85) {
-      score = Math.min(score, 3);
-    } else if (id === "originalidad" && aiProbability >= 75) {
-      score = Math.min(score, 6);
-    } else if (id === "originalidad" && aiProbability >= 65) {
-      score = Math.min(score, 9);
-    }
-    return makeAspect(id, score, justification || "Sin justificación.");
+    return makeAspect(id, current.score, current.justification.trim() || "Sin justificación.");
   });
 }
 
@@ -305,66 +288,47 @@ export function decideVerdict(
   aiProbability: number,
   smokingGun: boolean,
 ): Evaluation["verdict"] {
-  let institutional = contentGrade;
-  let integrity: Integrity = "limpia";
+  const institutional = contentGrade;
+  let headline = "Parece del alumno";
   let outcome: Outcome = contentGrade >= 6 ? "aprobado" : "insuficiente";
-  let explanation =
-    "La probabilidad de generación queda por debajo del umbral de sanción. La nota institucional es la nota de contenido. Eso no certifica autoría humana: solo dice que esta mesa no encontró motivo para recortar.";
+  let integrity: Integrity = "limpia";
+  let explanation = `El ${aiProbability} % junta lo que se ve en el archivo y en la forma de escribir. Ninguna señal alcanza para decir que lo hizo una IA.`;
 
-  if (smokingGun || aiProbability >= 85) {
-    institutional = 0;
-    integrity = "rechazada";
+  if (smokingGun || aiProbability >= 80) {
+    headline = "Hecho con IA";
     outcome = "rechazado";
+    integrity = "rechazada";
     explanation = smokingGun
-      ? "Hay un hallazgo crítico —metadato de herramienta generativa o el propio texto declarándose generado—. El reglamento pone la nota institucional en 0. La matriz de contenido se conserva como retroalimentación y no como calificación."
-      : "La probabilidad de mesa llega al umbral de rechazo (85 o más). La nota institucional es 0. La matriz describe el texto; no lo acredita.";
-  } else if (aiProbability >= 65) {
-    institutional = Math.min(contentGrade, 4);
-    integrity = "observada";
+      ? `El ${aiProbability} % no es una impresión de estilo. El archivo deja huella de una herramienta que genera texto, y eso pesa más que lo bien escrito que esté. Cada razón está abajo, en el orden en que sube el porcentaje.`
+      : `El ${aiProbability} % sale de señales que se acumulan: frases muy parejas, muletillas de modelo y poca huella de alguien que estuvo ahí. No hace falta una sola prueba perfecta cuando varias apuntan a lo mismo.`;
+  } else if (aiProbability >= 55) {
+    headline = "Uso de IA muy probable";
     outcome = "observado";
-    explanation = `Probabilidad ${aiProbability}. Entre 65 y 84 el trabajo queda observado: la nota institucional es el mínimo entre la nota de contenido y 4,0. No aprueba, aunque el texto esté bien escrito.`;
-  } else if (aiProbability >= 45) {
-    institutional = Math.max(0, Math.round((contentGrade - 2) * 10) / 10);
+    integrity = "observada";
+    explanation = `El ${aiProbability} % ya no es una duda menor. Las razones de abajo indican que una parte importante del trabajo no la escribió el alumno.`;
+  } else if (aiProbability >= 35) {
+    headline = "Hay ayuda de IA";
+    outcome = "aprobado-reserva";
     integrity = "reserva";
-    outcome = institutional >= 6 ? "aprobado-reserva" : "insuficiente";
-    explanation = `Probabilidad ${aiProbability}. Entre 45 y 64 se descuentan 2,0 puntos sobre la nota de contenido. ${
-      institutional >= 6
-        ? "Después del descuento todavía alcanza el 6,0: aprobado con reserva, no una absolución."
-        : "Después del descuento no alcanza el 6,0."
-    }`;
+    explanation = `El ${aiProbability} % no cierra el caso, pero tampoco permite tratar el texto como escrito solo por el alumno. Abajo está qué se vio y qué no.`;
   }
 
-  const headline =
-    outcome === "rechazado"
-      ? "No acreditable"
-      : outcome === "observado"
-        ? "Observado"
-        : outcome === "aprobado-reserva"
-          ? "Aprobado con reserva"
-          : outcome === "aprobado"
-            ? "Aprobado"
-            : integrity === "reserva"
-              ? "Insuficiente, con reserva"
-              : "Insuficiente";
-
   const band =
-    outcome === "rechazado"
-      ? "Rechazado"
-      : institutional >= 9
-        ? "Sobresaliente"
-        : institutional >= 7
-          ? "Notable"
-          : institutional >= 6
-            ? "Aprobado"
-            : institutional >= 5
-              ? "Insuficiente"
-              : "Deficiente";
+    institutional >= 9
+      ? "Muy bien logrado"
+      : institutional >= 7
+        ? "Bien logrado"
+        : institutional >= 6
+          ? "Suficiente"
+          : institutional >= 5
+            ? "Justo"
+            : "Escaso";
 
   return {
     institutionalGrade: Math.round(institutional * 10) / 10,
     outcome,
     integrity,
-    passed: outcome === "aprobado" || outcome === "aprobado-reserva",
+    passed: institutional >= 6,
     headline,
     explanation,
     band,
@@ -379,8 +343,8 @@ export function estimateFeedback(
   const weakest = [...aspects].sort((a, b) => a.score - b.score)[0];
   return {
     summary: forensic.smokingGun
-      ? "La mesa estima el contenido con reglas porque no hubo lectura del modelo, y el archivo ya trae un hallazgo crítico de generación."
-      : "Lectura de respaldo, sin modelo: la matriz sale de reglas sobre la consigna, las citas, la estructura y el indicio forense. Sirve para no dejar el acta en blanco; no sustituye una segunda lectura docente.",
+      ? "La nota mira solo el texto: si responde, si se entiende y si aporta algo. Que el archivo huela a IA no baja estos puntos."
+      : "La nota mira si el texto responde, si se entiende y si aporta algo. Es una lectura simple, no un tribunal de estilo.",
     strengths:
       strongest && strongest.score >= 12
         ? [`${strongest.name}: ${strongest.justification}`]

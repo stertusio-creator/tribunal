@@ -105,10 +105,6 @@ export function buildInforme(evaluation: Evaluation) {
         : evaluation.input.source === "text"
           ? "Texto plano"
           : "Texto pegado";
-  const model =
-    evaluation.ai.modelProbability == null
-      ? "No disponible"
-      : `${evaluation.ai.modelProbability} %`;
 
   const signalRows: Block[][] = [
     [headCell("Severidad"), headCell("Hallazgo"), headCell("Peso"), headCell("Fundamentación")],
@@ -191,35 +187,25 @@ export function buildInforme(evaluation: Evaluation) {
           "No se entregó consigna. La pertinencia queda topada en 14 puntos.",
       ],
     ]),
-    section("2. Resultado de mesa"),
+    section("2. Nota del trabajo"),
     keyTable([
-      ["Nota institucional", grade(evaluation.verdict.institutionalGrade)],
-      ["Nota de contenido", grade(evaluation.rubric.contentGrade)],
-      ["Calificación", evaluation.verdict.band],
-      ["Dictamen", evaluation.verdict.headline],
-      ["Aprueba", evaluation.verdict.passed ? "Sí" : "No"],
+      ["Nota", `${grade(evaluation.rubric.contentGrade)} / 10`],
+      ["Lectura", evaluation.verdict.band],
+      ["Puntos", `${evaluation.rubric.contentPoints} / ${evaluation.rubric.contentMax}`],
     ]),
-    paragraph(evaluation.verdict.explanation),
-    {
-      text:
-        evaluation.rubric.kind === "consigna"
-          ? "La nota de contenido sale de la rúbrica pegada en la consigna. La nota institucional es la que cuenta: aplica el reglamento de integridad sobre esa matriz. Un texto bien escrito puede quedar en cero si la generación no se sostiene."
-          : "La nota de contenido sale de la matriz de cinco aspectos. La nota institucional es la que cuenta: aplica el reglamento de integridad sobre esa matriz. Un texto bien escrito puede quedar en cero si la generación no se sostiene.",
-      fontSize: 9,
-      color: MUTED,
-      margin: [0, 0, 0, 4],
-    },
-    section("3. Porcentaje de generación con IA"),
+    paragraph(evaluation.feedback.summary),
+    paragraph(
+      "Esta nota mira solo el texto: si responde a lo pedido, si se entiende y si aporta algo. No baja porque el trabajo parezca hecho con IA. Eso se explica aparte, en el porcentaje.",
+    ),
+    section("3. Por qué este porcentaje de IA"),
     keyTable([
-      ["Probabilidad de mesa", `${evaluation.ai.probability} %`],
-      ["Indicio forense", `${evaluation.forensic.score} / 100`],
-      ["Lectura del modelo", model],
-      ["Hallazgo crítico", evaluation.forensic.smokingGun ? "Sí" : "No"],
-      ["Origen de la lectura", evaluation.ai.source === "modelo" ? "Modelo, ajustado por el forense" : "Solo forense"],
+      ["Uso de IA", `${evaluation.ai.probability} %`],
+      ["Lectura", evaluation.verdict.headline],
     ]),
     paragraph(evaluation.ai.summary),
+    paragraph(evaluation.verdict.explanation),
     paragraph(
-      "Cómo se fija el porcentaje. El forense suma señales concretas: nombre de una herramienta generativa en los metadatos, tiempo de edición incompatible con la extensión, fechas de creación y modificación casi idénticas, cadencia demasiado pareja, muletillas de prosa generativa y apelaciones a estudios sin cita. El modelo lee el texto y propone su propio porcentaje. La mesa no permite que el modelo absuelva un hallazgo grave: si hay metadato de herramienta generativa, el porcentaje no baja de 90; si el forense ya está en 70 o más, el porcentaje final no puede quedar más de 8 puntos por debajo. Por debajo de 45 no hay sanción. De 45 a 64 se descuentan 2,0 puntos. De 65 a 84 la nota institucional no pasa de 4,0. De 85 en adelante, o con hallazgo crítico, la nota institucional es 0.",
+      "El porcentaje no es un estilo de nota. Suma huellas concretas: el programa con el que se creó el archivo, el tiempo de edición, frases hechas de modelo y una prosa demasiado pareja. Si el archivo nombra una herramienta generativa, el porcentaje no baja de 96, aunque el texto esté bien escrito.",
     ),
     { text: "Señales que sostienen el porcentaje", bold: true, margin: [0, 4, 0, 4] },
     {
@@ -230,11 +216,9 @@ export function buildInforme(evaluation: Evaluation) {
     { text: "Pasajes usados como evidencia", bold: true, margin: [0, 2, 0, 4] },
     ...evidence,
     evaluation.modelNote ? paragraph(evaluation.modelNote) : { text: "" },
-    section("4. Evaluación académica"),
+    section("4. De dónde sale la nota"),
     paragraph(
-      evaluation.rubric.kind === "consigna"
-        ? "Los criterios y los puntajes son los de la rúbrica del docente. El nivel es el descriptor que el trabajo alcanza. La nota institucional, aparte, aplica el reglamento de integridad."
-        : "Cinco aspectos, veinte puntos cada uno. Diez a trece es un trabajo competente y genérico; dieciocho es excepcional. La originalidad se recorta si el porcentaje de IA es alto, aunque el resto del texto esté bien armado. Sin consigna del docente, la pertinencia no supera 14.",
+      "Cada línea dice qué se miró y por qué ese puntaje. Si pegó una rúbrica, los criterios son los de esa rúbrica.",
     ),
     {
       table: { headerRows: 1, widths: [130, 52, 68, "*"], body: aspectRows },
